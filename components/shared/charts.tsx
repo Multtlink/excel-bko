@@ -66,6 +66,7 @@ const Charts = ({ dados }: ChartsProps) => {
   const over60 = contarValores(dados, "OVER 60");
   const mve = contarValores(dados, "MVE");
   const status = contarValores(dados, "STATUS CLIENTE");
+  const segmento = contarValores(dados, "SEGMENTO");
 
   return (
     <div className="flex flex-col gap-8">
@@ -74,6 +75,7 @@ const Charts = ({ dados }: ChartsProps) => {
         <PizzaChart dados={over30} titulo="OVER 30" />
         <PizzaChart dados={over60} titulo="OVER 60" />
         <PizzaChart dados={mve} titulo="MVE" />
+        <PizzaChart dados={segmento} titulo="SEGMENTO" />
       </div>
 
       {/* Status - Barra */}
