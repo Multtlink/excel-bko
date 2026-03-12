@@ -7,6 +7,8 @@ import Field from "@/components/shared/field";
 import Table from "@/components/shared/table";
 import { Button } from "@/components/ui/button";
 import { useState, useMemo } from "react";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 type Data = {
   abas: string[];
@@ -28,6 +30,7 @@ export default function Home() {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    const toastId = toast.loading("Processando...");
     const formData = new FormData(e.currentTarget);
     const response = await fetch("/api/compare", {
       method: "POST",
@@ -36,11 +39,23 @@ export default function Home() {
     if (!response.ok) {
       const err = await response.text();
       console.error(err);
+      toast.update(toastId, {
+        render: "Erro ao processar a solicitação",
+        type: "error",
+        isLoading: false,
+        autoClose: 5000,
+      });
       return;
     }
     const result = await response.json();
     setData(result);
     setAbaAtiva(result.abas?.[0] ?? "");
+    toast.update(toastId, {
+      render: "Processado com sucesso",
+      type: "success",
+      isLoading: false,
+      autoClose: 3000,
+    });
   };
 
   const handleDownload = () => {
@@ -79,7 +94,6 @@ export default function Home() {
     return [...new Set(valores)].sort();
   }, [linhasAba]);
 
-  // Opções únicas de status para o select
   const statusOptions = useMemo(() => {
     const valores = linhasAba
       .map((l) => String(l["STATUS CLIENTE"] ?? "").trim())
@@ -131,8 +145,15 @@ export default function Home() {
     filtroSegmento,
   ]);
 
+  const somaQTD = useMemo(() => {
+    return linhasFiltradas.reduce((acc, linha) => {
+      const qtd = Number(linha["QTD"] ?? 0);
+      return acc + (isNaN(qtd) ? 0 : qtd);
+    }, 0);
+  }, [linhasFiltradas]);
+
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col relative">
       <form
         className="flex flex-1 max-w-2xl gap-6 p-6 border-2 border-neutral-300 rounded-lg my-6 self-center relative"
         onSubmit={handleSubmit}
@@ -156,7 +177,7 @@ export default function Home() {
 
       {data && (
         <div className="flex flex-col gap-4 mx-12">
-          <div className="flex gap-6 flex-1 items-center mx-12 border-2 border-neutral-300 rounded-lg p-4">
+          <div className="flex flex-col gap-6 flex-1 items-center mx-12 border-2 border-neutral-300 rounded-lg p-4">
             <AbaSelect
               abas={data.abas}
               abaAtiva={abaAtiva}
@@ -178,14 +199,31 @@ export default function Home() {
               setFiltroSegmento={setFiltroSegmento}
               segmentoOptions={segmentoOptions}
             />
-          </div>
 
-          <input
-            value={busca}
-            onChange={(e) => setBusca(e.target.value)}
-            placeholder="Buscar em todas as abas..."
-            className="border border-neutral-300 rounded px-3 py-1.5 text-sm self-end w-full"
-          />
+            <input
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              placeholder="Buscar em todas as abas..."
+              className="border border-neutral-300 rounded px-3 py-1.5 text-sm self-end w-full"
+            />
+
+
+            <div className="flex items-center gap-3 self-start bg-white border border-neutral-200 rounded-lg px-5 py-3 shadow-sm w-full justify-end">
+              <span className="text-sm text-neutral-500">
+                Total de linhas por Aba:
+              </span>
+              <span className="text-sm font-semibold text-neutral-700">
+                {linhasFiltradas.length}
+              </span>
+              <div className="w-px h-4 bg-neutral-200" />
+              <span className="text-sm text-neutral-500">
+                Soma QTD por Aba:
+              </span>
+              <span className="text-lg font-bold text-green-600">
+                {somaQTD}
+              </span>
+            </div>
+          </div>
 
           <Table data={linhasFiltradas} mostrarAba={!!busca.trim()} />
           {data.faturas && Object.keys(data.faturas).length > 0 && (

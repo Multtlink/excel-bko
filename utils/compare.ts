@@ -2,6 +2,13 @@ import { parseNomeAba } from "@/utils/normalize";
 
 type SheetData = Record<string, { asObjects: any[]; asArrays: any[][] }>;
 
+type PorCnpjItem = {
+  tipos: string[];
+  linhasPorTipo: Record<string, any>;
+  dadosExcel2: any;
+  cnpj: string;
+};
+
 const normalizeCnpj = (value: any) =>
   String(value ?? "")
     .replace(/\D/g, "")
@@ -65,41 +72,29 @@ export function processarFaturas(linhas3: any[], tabelaSheets: SheetData) {
   const PRIORIDADE = ["A_Vencer", "01a30", "31a60", "61a90"];
   const TIPOS_VALIDOS = new Set(["A_Vencer", "01a30", "31a60", "61a90"]);
 
-  const porCnpj: Record<
-    string,
-    {
-      tipos: string[];
-      linhasPorTipo: Record<string, any>;
-      dadosExcel2: any;
-      cnpj: string;
-    }
-  > = {};
+  const porCnpj: Record<string, PorCnpjItem> = {};
 
   for (const linha of linhas3) {
     const documentoRaw = linha?.DOCUMENTO_CLIENTE;
     const tipoFatura = String(linha?.DETALHE_TIPO_MOVIMENTO ?? "").trim();
 
     if (!documentoRaw || !tipoFatura) continue;
-    if (!TIPOS_VALIDOS.has(tipoFatura)) continue; // ignora 106a180, 91a105 etc
+    if (!TIPOS_VALIDOS.has(tipoFatura)) continue;
 
     const cnpj = String(documentoRaw).replace(/\D/g, "").padStart(14, "0");
 
-    // Filtra pela OBSERVACAO: só aceita dos últimos 12 meses
     const observacao = String(linha?.OBSERVACAO ?? "").trim();
     if (observacao) {
       const ano = parseInt(observacao.slice(0, 4));
       const mes = parseInt(observacao.slice(4, 6));
-
       if (!isNaN(ano) && !isNaN(mes)) {
         const dataObs = new Date(ano, mes - 1, 1);
         const hoje = new Date();
         const dozeAtras = new Date(hoje.getFullYear(), hoje.getMonth() - 12, 1);
-
-        if (dataObs < dozeAtras) continue; // ignora se for mais de 12 meses atrás
+        if (dataObs < dozeAtras) continue;
       }
     }
 
-    // Busca dados no Excel 2
     let dadosCliente: any = null;
     for (const nomeAba of Object.keys(tabelaSheets)) {
       const linhasAba = tabelaSheets[nomeAba].asObjects;
@@ -135,7 +130,6 @@ export function processarFaturas(linhas3: any[], tabelaSheets: SheetData) {
       porCnpj[cnpj].tipos.push(tipoFatura);
     }
 
-    // guarda a linha do excel3 para cada tipo
     porCnpj[cnpj].linhasPorTipo[tipoFatura] = linha;
   }
 

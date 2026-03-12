@@ -12,8 +12,6 @@ export async function POST(req: Request) {
 
   const { username, password } = parsed.data;
 
-  console.log("ENV HASH:", process.env.APP_PASSWORD_HASH);
-  console.log("PASSWORD RECEIVED:", password);
 
   if (username !== process.env.APP_USER) {
     return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
