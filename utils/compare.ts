@@ -9,6 +9,14 @@ type PorCnpjItem = {
   cnpj: string;
 };
 
+export type ClienteAtualizado = {
+  cnpj: string;
+  nome: string;
+  statusAntes: string;
+  statusDepois: string;
+  aba: string;
+};
+
 const normalizeCnpj = (value: any) =>
   String(value ?? "")
     .replace(/\D/g, "")
@@ -18,6 +26,8 @@ const findKey = (obj: Record<string, any>, keys: string[]) =>
   Object.keys(obj).find((k) => keys.includes(k.trim().toUpperCase()));
 
 export function compararExcels(clientesSheet: any[], tabelaSheets: SheetData) {
+  const atualizados: ClienteAtualizado[] = [];
+
   for (const cliente of clientesSheet) {
     const documentoRaw = cliente?.DOCUMENTO_CLIENTE;
     const descricaoProduto = cliente?.DESCRICAO_PRODUTO;
@@ -50,14 +60,25 @@ export function compararExcels(clientesSheet: any[], tabelaSheets: SheetData) {
     if (!registro) continue;
 
     const statusKey = findKey(registro, ["STATUS CLIENTE", "STATUS"]);
+    const statusAntes = statusKey ? String(registro[statusKey] ?? "") : "";
+    const nomeKey = findKey(registro, ["RAZÃO SOCIAL", "RAZAO SOCIAL", "NOME"]);
+
     if (statusKey) {
       registro[statusKey] = detalhe;
     } else {
       registro["STATUS CLIENTE"] = detalhe;
     }
+
+    atualizados.push({
+      cnpj: documentoCliente,
+      nome: nomeKey ? String(registro[nomeKey] ?? "") : "—",
+      statusAntes,
+      statusDepois: detalhe,
+      aba: abaCorreta,
+    });
   }
 
-  return tabelaSheets;
+  return { tabelaSheets, atualizados };
 }
 
 export function processarFaturas(linhas3: any[], tabelaSheets: SheetData) {
@@ -71,7 +92,6 @@ export function processarFaturas(linhas3: any[], tabelaSheets: SheetData) {
 
   const PRIORIDADE = ["A_Vencer", "01a30", "31a60", "61a90"];
   const TIPOS_VALIDOS = new Set(["A_Vencer", "01a30", "31a60", "61a90"]);
-
   const porCnpj: Record<string, PorCnpjItem> = {};
 
   for (const linha of linhas3) {
@@ -100,7 +120,7 @@ export function processarFaturas(linhas3: any[], tabelaSheets: SheetData) {
       const linhasAba = tabelaSheets[nomeAba].asObjects;
       const encontrado = linhasAba.find((l) => {
         const cnpjKey = Object.keys(l).find(
-          (k) => k.trim().toUpperCase() === "CNPJ",
+          (k) => k.trim().toUpperCase() === "CNPJ"
         );
         const cnpjTabela = String(l?.[cnpjKey ?? ""] ?? "")
           .replace(/\D/g, "")
@@ -133,9 +153,7 @@ export function processarFaturas(linhas3: any[], tabelaSheets: SheetData) {
     porCnpj[cnpj].linhasPorTipo[tipoFatura] = linha;
   }
 
-  for (const { tipos, linhasPorTipo, dadosExcel2, cnpj } of Object.values(
-    porCnpj,
-  )) {
+  for (const { tipos, linhasPorTipo, dadosExcel2, cnpj } of Object.values(porCnpj)) {
     let grupoPrioritario = "Outros";
     let maiorIndice = -1;
 
@@ -152,8 +170,7 @@ export function processarFaturas(linhas3: any[], tabelaSheets: SheetData) {
       tipoFatura: grupoPrioritario,
       todosTipos: tipos,
       dadosExcel2,
-      dadosExcel3:
-        linhasPorTipo[grupoPrioritario] ?? Object.values(linhasPorTipo)[0],
+      dadosExcel3: linhasPorTipo[grupoPrioritario] ?? Object.values(linhasPorTipo)[0],
     });
   }
 

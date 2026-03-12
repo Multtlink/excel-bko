@@ -26,7 +26,6 @@ function gerarExcelFatura(lista: any[]): string {
       (k) => k.trim().toUpperCase() === "CONTATO"
     );
     const contato = contatoKey ? d2[contatoKey] : null;
-
     const linha: Record<string, any> = {};
     for (const col of COLUNAS_FATURA) {
       linha[col] = col === "CONTATO" ? contato : d3[col] ?? null;
@@ -36,13 +35,10 @@ function gerarExcelFatura(lista: any[]): string {
 
   const wb = xlsx.utils.book_new();
   const ws = xlsx.utils.json_to_sheet(dadosFormatados, { header: COLUNAS_FATURA });
-
-  // autofit
   const colWidths = COLUNAS_FATURA.map((col) => ({
     wch: Math.max(col.length, ...dadosFormatados.map((l) => String(l[col] ?? "").length)) + 2,
   }));
   ws["!cols"] = colWidths;
-
   xlsx.utils.book_append_sheet(wb, ws, "Faturas");
   return xlsx.write(wb, { type: "base64", bookType: "xlsx" });
 }
@@ -69,7 +65,7 @@ export async function POST(request: Request) {
     }
 
     const clientes = excel1[firstSheet1].asObjects ?? [];
-    compararExcels(clientes, excel2);
+    const { tabelaSheets, atualizados } = compararExcels(clientes, excel2);
 
     let faturas: Record<string, any[]> = {};
     let excelFaturas: Record<string, string> = {};
@@ -79,9 +75,7 @@ export async function POST(request: Request) {
       const firstSheet3 = Object.keys(excel3)[0];
       if (firstSheet3) {
         const linhas3 = excel3[firstSheet3].asObjects ?? [];
-        faturas = processarFaturas(linhas3, excel2);
-
-        // gera um excel para cada tipo de fatura
+        faturas = processarFaturas(linhas3, tabelaSheets);
         for (const tipo of ["01a30", "31a60", "61a90"]) {
           if (faturas[tipo]?.length > 0) {
             excelFaturas[tipo] = gerarExcelFatura(faturas[tipo]);
@@ -92,7 +86,7 @@ export async function POST(request: Request) {
 
     const abasDados: Record<string, any[]> = {};
     for (const nomeAba of workbook2.SheetNames) {
-      const dados = excel2[nomeAba]?.asObjects;
+      const dados = tabelaSheets[nomeAba]?.asObjects;
       if (!dados || dados.length === 0) continue;
 
       const dadosOrdenados = dados.map((linha: any) => {
@@ -113,7 +107,7 @@ export async function POST(request: Request) {
 
       const novaSheet = xlsx.utils.json_to_sheet(dadosOrdenados, { header: ORDEM_COLUNAS });
       const colWidths = ORDEM_COLUNAS.map((col) => ({
-        wch: Math.max(col.length, ...dadosOrdenados.map((l) => String(l[col] ?? "").length)) + 2,
+        wch: Math.max(col.length, ...dadosOrdenados.map((l: any) => String(l[col] ?? "").length)) + 2,
       }));
       novaSheet["!cols"] = colWidths;
       workbook2.Sheets[nomeAba] = novaSheet;
@@ -127,6 +121,7 @@ export async function POST(request: Request) {
       excelBase64: outputBuffer,
       excelFaturas,
       faturas,
+      atualizados,
     });
   } catch (err: any) {
     return NextResponse.json({ error: String(err?.message ?? err) }, { status: 500 });

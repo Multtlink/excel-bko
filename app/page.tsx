@@ -1,4 +1,5 @@
 "use client";
+import ModalAtualizados from "@/components/features/modalAtt";
 import AbaSelect from "@/components/features/table/abaSelect";
 import FilterTable from "@/components/features/table/filter";
 import Charts from "@/components/shared/charts";
@@ -6,6 +7,7 @@ import Faturas from "@/components/shared/faturas";
 import Field from "@/components/shared/field";
 import Table from "@/components/shared/table";
 import { Button } from "@/components/ui/button";
+import { ClienteAtualizado } from "@/utils/compare";
 import { useState, useMemo } from "react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -16,6 +18,7 @@ type Data = {
   excelBase64: string;
   excelFaturas: Record<string, string>;
   faturas: Record<string, any[]>;
+  atualizados: ClienteAtualizado[];
 };
 
 export default function Home() {
@@ -176,6 +179,18 @@ export default function Home() {
       )}
 
       {data && (
+        <div className="flex gap-3 absolute top-0 right-0 mt-6 mr-6">
+          <ModalAtualizados atualizados={data.atualizados} />
+          <Button
+            onClick={handleDownload}
+            className="bg-blue-500 hover:bg-blue-600 text-white font-semibold px-6 py-3 rounded"
+          >
+            Baixar Excel
+          </Button>
+        </div>
+      )}
+
+      {data && (
         <div className="flex flex-col gap-4 mx-12">
           <div className="flex flex-col gap-6 flex-1 items-center mx-12 border-2 border-neutral-300 rounded-lg p-4">
             <AbaSelect
@@ -206,7 +221,6 @@ export default function Home() {
               placeholder="Buscar em todas as abas..."
               className="border border-neutral-300 rounded px-3 py-1.5 text-sm self-end w-full"
             />
-
 
             <div className="flex items-center gap-3 self-start bg-white border border-neutral-200 rounded-lg px-5 py-3 shadow-sm w-full justify-end">
               <span className="text-sm text-neutral-500">
